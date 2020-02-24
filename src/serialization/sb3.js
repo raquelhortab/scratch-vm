@@ -19,7 +19,7 @@ const VariableUtil = require('../util/variable-util');
 
 const {loadCostume} = require('../import/load-costume.js');
 const {loadSound} = require('../import/load-sound.js');
-const {deserializeCostume, deserializeSound} = require('./deserialize-assets.js');
+const {deserializeCostume, deserializeCostumeWithData, deserializeSound, deserializeSoundWithData} = require('./deserialize-assets.js');
 
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 
@@ -349,6 +349,7 @@ const serializeCostume = function (costume) {
     // updated to actually refer to this as 'md5ext' instead of 'md5'
     // but that change should be made carefully since it is very
     // pervasive
+    obj.data = costume.asset.data;
     obj.md5ext = costume.md5;
     obj.dataFormat = costume.dataFormat.toLowerCase();
     obj.rotationCenterX = costume.rotationCenterX;
@@ -369,6 +370,7 @@ const serializeSound = function (sound) {
     obj.format = sound.format;
     obj.rate = sound.rate;
     obj.sampleCount = sound.sampleCount;
+    obj.data = sound.asset.data;
     // serialize this property with the name 'md5ext' because that's
     // what it's actually referring to. TODO runtime objects need to be
     // updated to actually refer to this as 'md5ext' instead of 'md5'
@@ -854,6 +856,7 @@ const parseScratchAssets = function (object, runtime, zip) {
             // costumeSource only has an asset if an image is being uploaded as
             // a sprite
             asset: costumeSource.asset,
+            data: costumeSource.data,
             assetId: costumeSource.assetId,
             skinId: null,
             name: costumeSource.name,
@@ -874,8 +877,14 @@ const parseScratchAssets = function (object, runtime, zip) {
         // we're always loading the 'sb3' representation of the costume
         // any translation that needs to happen will happen in the process
         // of building up the costume object into an sb3 format
-        return deserializeCostume(costume, runtime, zip)
-            .then(() => loadCostume(costumeMd5Ext, costume, runtime));
+        if (costume.data) {
+            return deserializeCostumeWithData(costume, runtime)
+                .then(() => loadCostume(costumeMd5Ext, costume, runtime));
+        } else {
+            return deserializeCostume(costume, runtime, zip)
+                .then(() => loadCostume(costumeMd5Ext, costume, runtime));
+        }
+
         // Only attempt to load the costume after the deserialization
         // process has been completed
     });
@@ -892,15 +901,22 @@ const parseScratchAssets = function (object, runtime, zip) {
             // moment, so this translation is very important
             md5: soundSource.md5ext,
             dataFormat: soundSource.dataFormat,
-            data: null
+            data: soundSource.data
         };
         // deserializeSound should be called on the sound object we're
         // creating above instead of the source sound object, because this way
         // we're always loading the 'sb3' representation of the costume
         // any translation that needs to happen will happen in the process
         // of building up the costume object into an sb3 format
+        if (sound.data){
+            return deserializeSoundWithData(sound, runtime)
+                .then(() => loadSound(sound, runtime, assets.soundBank));
+        }
+
         return deserializeSound(sound, runtime, zip)
             .then(() => loadSound(sound, runtime, assets.soundBank));
+
+
         // Only attempt to load the sound after the deserialization
         // process has been completed.
     });

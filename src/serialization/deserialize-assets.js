@@ -1,6 +1,24 @@
 const JSZip = require('jszip');
 const log = require('../util/log');
 
+const deserializeSoundWithData = function(sound, runtime){
+    const storage = runtime.storage;
+    const dataFormat = sound.dataFormat.toLowerCase() === 'mp3' ?
+        storage.DataFormat.MP3 : storage.DataFormat.WAV;
+    return Promise.resolve(
+        storage.createAsset(
+            storage.AssetType.Sound,
+            dataFormat,
+            new Uint8Array(Object.keys(sound.data).map(key => sound.data[key])),
+            null,
+            true
+        )).then(asset => {
+        sound.asset = asset;
+        sound.assetId = asset.assetId;
+        sound.md5 = `${asset.assetId}.${asset.dataFormat}`;
+    });
+};
+
 /**
  * Deserializes sound from file into storage cache so that it can
  * be loaded into the runtime.
@@ -58,6 +76,31 @@ const deserializeSound = function (sound, runtime, zip, assetFileName) {
             sound.md5 = `${asset.assetId}.${asset.dataFormat}`;
         });
 };
+
+
+const deserializeCostumeWithData = function(costume, runtime){
+    const storage = runtime.storage;
+    const costumeFormat = costume.dataFormat.toLowerCase();
+    var assetType = null;
+    if (costumeFormat === 'svg') {
+        assetType = storage.AssetType.ImageVector;
+    } else if (['png', 'bmp', 'jpeg', 'jpg', 'gif'].indexOf(costumeFormat) >= 0) {
+        assetType = storage.AssetType.ImageBitmap;
+    } else {
+        log.error(`Unexpected file format for costume: ${costumeFormat}`);
+    }
+    return Promise.resolve(storage.createAsset(
+        assetType,
+        costume.dataFormat,
+        new Uint8Array(Object.keys(costume.data).map(key => costume.data[key])),
+        null,
+        true
+    )).then(asset => {
+        costume.asset = asset;
+        costume.assetId = asset.assetId;
+        costume.md5 = `${asset.assetId}.${asset.dataFormat}`;
+    });
+}
 
 /**
  * Deserializes costume from file into storage cache so that it can
@@ -174,5 +217,7 @@ const deserializeCostume = function (costume, runtime, zip, assetFileName, textL
 
 module.exports = {
     deserializeSound,
-    deserializeCostume
+    deserializeCostume,
+    deserializeCostumeWithData,
+    deserializeSoundWithData
 };
